@@ -1,0 +1,48 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+
+const char* ssid = "KISORE C";
+const char* password = "12345129";
+const char* serverUrl = "http://10.132.250.234:3000/data";
+
+const int eegPin = A0;
+
+int baseline = 0;
+float alpha = 0.1;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  baseline = analogRead(eegPin);
+  Serial.println("Connected to WiFi");
+}
+
+void loop() {
+  int signal = analogRead(eegPin);
+
+  // Adaptive baseline (same logic as yours)
+  baseline = (1 - alpha) * baseline + alpha * signal;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    WiFiClient client;
+
+    http.begin(client, serverUrl);
+    http.addHeader("Content-Type", "application/json");
+
+    String json =
+      "{\"signal\":" + String(signal) +
+      ",\"baseline\":" + String(baseline) + "}";
+
+    http.POST(json);
+    http.end();
+  }
+
+  delay(100);
+}
